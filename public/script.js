@@ -1,122 +1,129 @@
+// script.js
+
+const QUIZ_URL = "/api/quiz";
+const CHECK_URL = "/api/check";
+
 let quizData = [];
 let currentQuestion = 0;
 let userAnswers = [];
 
+const startScreen = document.getElementById("startScreen");
+const quizScreen = document.getElementById("quizScreen");
+const resultScreen = document.getElementById("resultScreen");
+const quizContainer = document.getElementById("quiz");
+const progressBar = document.getElementById("progressBar");
+const progressText = document.getElementById("progressText");
+const finalScore = document.getElementById("finalScore");
+const detailsContainer = document.getElementById("details");
+
+// Функция старта квиза
 async function startQuiz() {
-  document.getElementById("startScreen").style.display = "none";
-  document.getElementById("quizScreen").style.display = "block";
-  document.getElementById("resultScreen").style.display = "none";
-
-  const res = await fetch("/quiz");
-  quizData = await res.json();
-
-  currentQuestion = 0;
+  startScreen.style.display = "none";
+  quizScreen.style.display = "block";
   userAnswers = [];
+  currentQuestion = 0;
+  await loadQuiz();
   showQuestion();
 }
 
+// Загрузка вопросов с сервера
+async function loadQuiz() {
+  try {
+    const res = await fetch(QUIZ_URL);
+    quizData = await res.json();
+  } catch (err) {
+    console.error("Ошибка загрузки вопросов:", err);
+  }
+}
+
+// Отображение текущего вопроса
 function showQuestion() {
-  updateProgress();
-  const container = document.getElementById("quiz");
+  quizContainer.innerHTML = "";
+  const q = quizData[currentQuestion];
 
-  container.classList.remove("show");
-  container.classList.add("hide");
+  const questionEl = document.createElement("h2");
+  questionEl.textContent = q.question;
+  quizContainer.appendChild(questionEl);
 
-  setTimeout(() => {
-    container.innerHTML = "";
+  q.answers.forEach(ans => {
+    const btn = document.createElement("button");
+    btn.textContent = ans;
+    btn.classList.add("answerBtn");
+    btn.addEventListener("click", () => selectAnswer(ans, btn));
+    quizContainer.appendChild(btn);
+  });
 
-    const q = quizData[currentQuestion];
-    const title = document.createElement("h2");
-    title.textContent = q.question;
-    container.appendChild(title);
-
-    q.answers.forEach(answer => {
-      const label = document.createElement("label");
-      label.classList.add("answer");
-
-      const radio = document.createElement("input");
-      radio.type = "radio";
-      radio.name = "answer";
-      radio.value = answer;
-
-      radio.addEventListener("change", () => {
-        document.querySelectorAll(".answer").forEach(a => a.classList.remove("selected"));
-        label.classList.add("selected");
-      });
-
-      label.appendChild(radio);
-      label.appendChild(document.createTextNode(answer));
-      container.appendChild(label);
-    });
-
-    container.classList.remove("hide");
-    container.classList.add("show");
-  }, 200);
+  // Обновление прогресс-бара
+  progressText.textContent = `Question ${currentQuestion + 1} / ${quizData.length}`;
+  progressBar.style.width = `${((currentQuestion) / quizData.length) * 100}%`;
 }
 
-function updateProgress() {
-  const total = quizData.length;
-  const current = currentQuestion + 1;
-  document.getElementById("progressText").innerText = "Вопрос " + current + " / " + total;
-  const percent = (currentQuestion / total) * 100;
-  document.getElementById("progressBar").style.width = percent + "%";
+// Выбор ответа
+function selectAnswer(answer, btn) {
+  // Анимация выбора
+  btn.classList.add("selected");
+  setTimeout(() => btn.classList.remove("selected"), 300);
+
+  // Записываем ответ
+  userAnswers[currentQuestion] = { id: quizData[currentQuestion].id, answer };
+
+  // Если есть следующий вопрос, показываем кнопку Next
+  if(currentQuestion < quizData.length - 1) {
+    const nextBtn = document.querySelector("#quizScreen button");
+    nextBtn.style.display = "block";
+  } else {
+    submitQuiz();
+  }
 }
 
+// Переход к следующему вопросу
 function nextQuestion() {
-  const selected = document.querySelector("input[name='answer']:checked");
-  if (!selected) { alert("Пожалуйста, выберите вариант ответа"); return; }
-
-  userAnswers.push({ id: quizData[currentQuestion].id, answer: selected.value });
   currentQuestion++;
-
-  if (currentQuestion < quizData.length) showQuestion();
-  else finishQuiz();
+  showQuestion();
+  const nextBtn = document.querySelector("#quizScreen button");
+  nextBtn.style.display = "none";
 }
 
-async function finishQuiz() {
-  const res = await fetch("/check", {
-    method:"POST",
-    headers: { "Content-Type":"application/json" },
-    body: JSON.stringify(userAnswers)
-  });
-
-  const data = await res.json();
-
-  document.getElementById("quizScreen").style.display = "none";
-  document.getElementById("resultScreen").style.display = "block";
-
-  document.getElementById("finalScore").innerText =
-    "Результат: " + data.score + " / " + quizData.length;
-
-  const details = document.getElementById("details");
-  details.innerHTML = "";
-
-  data.details.forEach((d, i) => {
-    const div = document.createElement("div");
-    div.classList.add("result-card");
-    div.innerHTML =
-      "<p><b>" + (i+1) + ". " + d.question + "</b></p>" +
-      "<p class='" + (d.correct ? "correct":"wrong") + "'>" +
-      (d.correct ? "✔ Правильно":"❌ Неправильно") + "</p>";
-    details.appendChild(div);
-
-    setTimeout(()=>{
-      div.classList.add("visible");
-      if(i === data.details.length-1){
-        document.querySelector("#resultScreen button").classList.add("visible");
-      }
-    }, i*300);
-  });
+// Отправка ответов на сервер и показ результатов
+async function submitQuiz() {
+  try {
+    const res = await fetch(CHECK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(userAnswers)
+    });
+    const result = await res.json();
+    showResults(result);
+  } catch (err) {
+    console.error("Ошибка отправки ответов:", err);
+  }
 }
 
+// Отображение результатов
+function showResults(result) {
+  quizScreen.style.display = "none";
+  resultScreen.style.display = "block";
+
+  finalScore.textContent = `You scored ${result.score} / ${result.total}`;
+
+  detailsContainer.innerHTML = "";
+  result.details.forEach(d => {
+    const p = document.createElement("p");
+    p.textContent = `${d.question} — ${d.correct ? "✔ Correct" : "❌ Incorrect"}`;
+    // Анимация подпрыгивания
+    p.classList.add("resultItem");
+    detailsContainer.appendChild(p);
+  });
+
+  // Прогресс бар на финальном экране
+  progressBar.style.width = "100%";
+  progressText.textContent = "Quiz Completed!";
+}
+
+// Кнопка Restart
 function restartQuiz() {
-  quizData=[]; currentQuestion=0; userAnswers=[];
-  document.getElementById("resultScreen").style.display="none";
-  const btn = document.querySelector("#resultScreen button");
-  btn.classList.remove("visible");
-  document.getElementById("startScreen").style.display="block";
+  resultScreen.style.display = "none";
+  startScreen.style.display = "block";
+  progressBar.style.width = "0%";
+  progressText.textContent = "";
 }
-
-window.onload = () => {
-  document.getElementById("startScreen").style.display="block";
-};
