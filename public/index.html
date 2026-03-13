@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Web Quiz</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Start Screen -->
+<div id="startScreen" class="screen">
+  <div class="container">
+    <h1>Quiz по WEB программированию</h1>
+    <p>Проверь свои знания по HTML, CSS, and JavaScript.</p>
+    <button onclick="startQuiz()">Начать</button>
+  </div>
+</div>
+
+<!-- Quiz Screen -->
+<div id="quizScreen" class="screen" style="display:none">
+  <div class="container">
+    <div id="progressText"></div>
+    <div id="progressBarContainer">
+      <div id="progressBar"></div>
+    </div>
+    <div id="quiz"></div>
+    <button onclick="nextQuestion()">Следующий вопрос</button>
+  </div>
+</div>
+
+<!-- Result Screen -->
+<div id="resultScreen" class="screen" style="display:none">
+  <div class="container">
+    <h2 id="finalScore"></h2>
+    <div id="details"></div>
+    <button onclick="restartQuiz()">Начать заново</button>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
